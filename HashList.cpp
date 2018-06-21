@@ -1,4 +1,4 @@
-//#include "stdafx.h"
+#include "stdafx.h"
 #include "HashList.h"
 
 void HashList::build_hash_grid(int w, int h){

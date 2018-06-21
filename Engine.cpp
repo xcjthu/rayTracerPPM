@@ -1,4 +1,4 @@
-// #include "stdafx.h"
+#include "stdafx.h"
 #include "Engine.h"
 
 const double ALPHA = 0.7;
@@ -78,8 +78,20 @@ void Engine::trace(const Ray &r, int dpt, int x, int y, double refrIndex) {
 	}
 }
 
+Vec Engine::randVec() {
+	double cost1 = 2 * PI * (double(rand())) / RAND_MAX;
+	double cost2 = 2 * PI * (double(rand())) / RAND_MAX;
+	return Vec(cos(cost1), sin(cost1) * cos(cost2), sin(cost1) * sin(cost2));
+}
 
-void Engine::tracePass2(const Ray& r, int dpt, int x, int y, Vec& flux, double refrIndex){
+void Engine::genp(Ray& ray, Vec& flux) {
+	flux = Vec(2500, 2500, 2500) * (PI * 4.0);
+	ray.dir = randVec();
+	ray.o = Vec(50, 50, 50); //光源
+
+}
+
+void Engine::tracePass2(const Ray& r, int dpt, Vec& flux, double refrIndex){
 	double dist;
 	int id;
 	
@@ -91,10 +103,24 @@ void Engine::tracePass2(const Ray& r, int dpt, int x, int y, Vec& flux, double r
 	Vec ap = r.o + r.dir * dist; //相交的交点
 	Vec n = obj->getNormal(ap).norm();
 	Color f = obj->getColor();
+
+	double p = f.x>f.y&&f.x>f.z ? f.x : f.y>f.z ? f.y : f.z;//吸收的概率
 	
 	Vec nl = n.dot(r.dir)<0 ? n : n*-1;
+
+	double diffPar = obj->GetDiffuse();
+	double reflPar = obj->GetReflection();
+	double refrPar = obj->GetRefraction();
+
+	double randNum = (diffPar + reflPar + refrPar + p) * double(rand()) / RAND_MAX;
+	int choice;
+	if (randNum < diffPar) choice = 0;
+	else if (randNum < diffPar + reflPar) choice = 1;
+	else choice = 2;
+
 	
-	if (obj->GetDiffuse() != 0){
+	// if (obj->GetDiffuse() != 0){
+	if(choice == 0){
 		Vec hh = (ap - hashL.hpBox.min) * hashL.hash_s;
 		int ix = abs(int(hh.x)), iy = abs(int(hh.y)), iz = abs(int(hh.z));
 		{
@@ -105,20 +131,66 @@ void Engine::tracePass2(const Ray& r, int dpt, int x, int y, Vec& flux, double r
 					double g = (hp[tmp]->N * ALPHA + ALPHA)/(hp[tmp]->N * ALPHA + 1.0);
 					hp[tmp]->radius2 = hp[tmp]->radius2 * g;
 					++ hp[tmp]->N;
-					// hp[tmp]->flux = (hp[tmp]->flux + hp[tmp]->f.mul(fl)*(1./PI))*g??
+					hp[tmp]->flux = (hp[tmp]->flux + hp[tmp]->wgt.mul(flux)*(1. / PI))*g;
 				}
 			}
-			// tracePass2(<#const Ray &r#>, <#int dpt#>, <#int x#>, <#int y#>, <#Vec &flux#>, <#double refrIndex#>)??
+			tracePass2(Ray(ap, randVec()), dpt, f.mul(flux)*(1. / p), refrIndex);
 		}
 	}
-	if (obj->GetReflection() != 0){
-		tracePass2(Ray(ap, r.dir - n * 2.0 * n.dot(r.dir)), x, y, dpt, f.mul(flux),refrIndex);
+	// if (obj->GetReflection() != 0){
+	if (choice == 1){
+		tracePass2(Ray(ap, r.dir - n * 2.0 * n.dot(r.dir)), dpt, f.mul(flux),refrIndex);
 	}
-	if (obj->GetRefraction() != 0){
+	// if (obj->GetRefraction() != 0){
+	if (choice == 2){
 		// ??
+		Ray lr(ap, r.dir - n*2.0*n.dot(r.dir));
+		bool into = (n.dot(nl)>0.0);
+		double nc = refrIndex, nt = obj->GetRefrIndex(), nnt = into ? nc / nt : nt / nc, ddn = r.dir.dot(nl), cos2t;
+
+		// total internal reflection
+		if ((cos2t = 1 - nnt*nnt*(1 - ddn*ddn))<0) return tracePass2(lr, dpt, flux, refrIndex);
+
+		Vec td = (r.dir * nnt - n * ((into ? 1 : -1) * (ddn * nnt + sqrt(cos2t)))).norm();
+		double a = nt - nc, b = nt + nc, R0 = a*a / (b*b), c = 1 - (into ? -ddn : td.dot(n));
+		double Re = R0 + (1 - R0)*c*c*c*c*c, P = Re; Ray rr(ap, td); 
+		
+		// photon ray (pick one via Russian roulette)
+		tracePass2(rr, dpt, flux, nt);
+	}	
+}
+
+void Engine::render() {
+	int w = 1024, h = 768;
+	// trace eye rays and store measurement points
+	Ray cam(Vec(50, 48, 295.6), Vec(0, -0.042612, -1).norm());
+	Vec cx = Vec(w*.5135 / h), cy = (cx % cam.dir).norm()*.5135, *c = new Vec[w*h], vw;
+	for (int y = 0; y<h; y++) {
+		fprintf(stderr, "\rHitPointPass %5.2f%%", 100.0*y / (h - 1));
+		for (int x = 0; x<w; x++) {
+			// pixel_index = x + y * w;
+			Vec d = cx * ((x + 0.5) / w - 0.5) + cy * (-(y + 0.5) / h + 0.5) + cam.dir;
+			trace(Ray(cam.o + d * 140, d.norm()), 0, x, y, 1.0);
+		}
 	}
-	
-	
+
+	hashL.build_hash_grid(w, h);
+
+	int num_photon = 1000;
+
+	vw = Vec(1, 1, 1);
+	// #pragma omp parallel for schedule(dynamic, 1)
+	for (int i = 0; i<num_photon; i++) {
+		double p = 100.*(i + 1) / num_photon;
+		fprintf(stderr, "\rPhotonPass %5.2f%%", p);
+		int m = 1000 * i;
+		Ray r;
+		Vec f;
+		for (int j = 0; j<1000; j++) {
+			genp(r, f);
+			tracePass2(r, 0, f, 1.0);
+		}
+	}
 }
 
 void Scene::initScene() {

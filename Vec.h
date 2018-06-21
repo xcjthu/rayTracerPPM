@@ -28,10 +28,10 @@ class Color : public Vec {
 
 class Ray {
 public:
-	Ray(const Vec _o, const Vec _dir) : o(_o), dir(_dir) {}
+	Ray(const Vec _o = Vec(), const Vec _dir = Vec()) : o(_o), dir(_dir) {}
 	const Vec& getOri() { return o; }
 	const Vec& getDir() { return dir; }
-	Ray reflect(const Vec& n) { return Ray(x, r.d - n*2.0*n.dot(r.d); }
+	Ray reflect(const Vec& n) { return Ray(x, r.dir - n*2.0*n.dot(r.d); }
 	Vec o, dir;
 };
 
