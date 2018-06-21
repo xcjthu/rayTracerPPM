@@ -1,7 +1,7 @@
 // #include "stdafx.h"
 #include "Engine.h"
 
-
+const double ALPHA = 0.7;
 
 Engine::~Engine()
 {
@@ -76,6 +76,49 @@ void Engine::trace(const Ray &r, int dpt, int x, int y, double refrIndex) {
 			trace(rr, dpt, x, y, objRefr);
 		}
 	}
+}
+
+
+void Engine::tracePass2(const Ray& r, int dpt, int x, int y, Vec& flux, double refrIndex){
+	double dist;
+	int id;
+	
+	++ dpt;
+	if (!Intersect(r, dist, id) || dpt >= 20) return;
+	
+	Primitive* obj = scene->getPrim(id); //相交的物体
+	
+	Vec ap = r.o + r.dir * dist; //相交的交点
+	Vec n = obj->getNormal(ap).norm();
+	Color f = obj->getColor();
+	
+	Vec nl = n.dot(r.dir)<0 ? n : n*-1;
+	
+	if (obj->GetDiffuse() != 0){
+		Vec hh = (ap - hashL.hpBox.min) * hashL.hash_s;
+		int ix = abs(int(hh.x)), iy = abs(int(hh.y)), iz = abs(int(hh.z));
+		{
+			std::vector<HPoint*> hp = hashL.hashGrid[hashL.hash(ix, iy, iz)];
+			for(int tmp = 0; tmp < hp.size(); ++ tmp){
+				Vec v = hp[tmp]->pos - ap;
+				if (hp[tmp]->nor.dot(n) > 1e-3 && v.dot(v) <= hp[tmp]->radius2){
+					double g = (hp[tmp]->N * ALPHA + ALPHA)/(hp[tmp]->N * ALPHA + 1.0);
+					hp[tmp]->radius2 = hp[tmp]->radius2 * g;
+					++ hp[tmp]->N;
+					// hp[tmp]->flux = (hp[tmp]->flux + hp[tmp]->f.mul(fl)*(1./PI))*g??
+				}
+			}
+			// tracePass2(<#const Ray &r#>, <#int dpt#>, <#int x#>, <#int y#>, <#Vec &flux#>, <#double refrIndex#>)??
+		}
+	}
+	if (obj->GetReflection() != 0){
+		tracePass2(Ray(ap, r.dir - n * 2.0 * n.dot(r.dir)), x, y, dpt, f.mul(flux),refrIndex);
+	}
+	if (obj->GetRefraction() != 0){
+		// ??
+	}
+	
+	
 }
 
 void Scene::initScene() {

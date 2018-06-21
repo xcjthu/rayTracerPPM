@@ -48,7 +48,7 @@ public:
 	virtual double Intersect(const Ray& a_Ray) = 0;
 	virtual Vec getNormal(Vec& pos) = 0;
 	virtual void Light(bool a_light) { mLight = a_light; }
-	virtual Color getColor(Vec&) { return material.getColor(); }
+	virtual Color getColor() { return material.getColor(); }
 	virtual std::string getType() = 0;
 	double GetSpecular() { return material.GetSpecular(); }
 	double GetDiffuse() { return material.GetDiffuse(); }
