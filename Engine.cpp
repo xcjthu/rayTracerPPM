@@ -1,4 +1,4 @@
-#include "stdafx.h"
+// #include "stdafx.h"
 #include "Engine.h"
 
 
@@ -23,7 +23,7 @@ bool Engine::Intersect(const Ray& ray, double& dist, int& id) {
 }
 
 
-void Engine::trace(const Ray &r, int dpt, double refrIndex) {
+void Engine::trace(const Ray &r, int dpt, int x, int y, double refrIndex) {
 	//参数意义 r: 光线, dpt: 追踪深度, m: 是否是用来组织光子, f1:
 	double dist;
 	int id;
@@ -42,12 +42,13 @@ void Engine::trace(const Ray &r, int dpt, double refrIndex) {
 	
 	if (obj->GetDiffuse() != 0) {
 		//建立一个HitPoint
-		
+		hashL.addNode(HPoint(ap, n, r.dir, x, y));
+		// HPoint(const Vec _pos, const Vec _nor, const Vec _rD, int _x, int _y):pos(_pos),nor(_nor),rayDir(_rD), x(_x), y(_y){}
 
 	}
 	if (obj->GetReflection() != 0) {
 		//按照正常光路走
-		trace(Ray(ap, r.dir - n * 2.0 * n.dot(r.dir)), dpt, refrIndex);
+		trace(Ray(ap, r.dir - n * 2.0 * n.dot(r.dir)), x, y, dpt, refrIndex);
 	}
 	if (obj->GetRefraction() != 0) {
 		//按照正常光路走
@@ -61,20 +62,20 @@ void Engine::trace(const Ray &r, int dpt, double refrIndex) {
 			double nnt = into ? refrIndex / objRefr : objRefr / refrIndex;
 			// total internal reflection
 			if ((cos2t = 1 - nnt*nnt*(1 - ddn*ddn))<0) //全反射只有反射光线
-				return trace(lr, dpt, refrIndex);
+				return trace(lr, dpt, x, y, refrIndex);
 
 			Vec td = (r.dir * nnt - n * ((into ? 1 : -1)*(ddn*nnt + sqrt(cos2t)))).norm();
-			double a = objRefr - refrIndex, b = objRefr + refrIndex, R0 = a*a / (b*b), c = 1 - (into ? -ddn : td.dot(n));
-			double Re = R0 + (1 - R0)*c*c*c*c*c, P = Re; Ray rr(ap, td);
+			// double a = objRefr - refrIndex, b = objRefr + refrIndex;
+			// double R0 = a*a / (b*b);
+			// double c = 1 - (into ? -ddn : td.dot(n));
+			// double Re = R0 + (1 - R0)*c*c*c*c*c;
+			Ray rr(ap, td);
 			
 			//反射光线和折射光线都有
-			trace(lr, dpt, refrIndex);
-			trace(rr, dpt, objRefr);
+			trace(lr, dpt, x, y, refrIndex);
+			trace(rr, dpt, x, y, objRefr);
 		}
-
 	}
-
-
 }
 
 void Scene::initScene() {

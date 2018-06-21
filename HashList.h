@@ -1,21 +1,23 @@
 #pragma once
 
 #include "Vec.h"
+#include <vector>
 
 #define MAX(x, y) ((x > y) ? x : y)
 struct HPoint {
 	
 	Vec pos, nor, rayDir;
-	int  brdfIndex;
 	int x, y; //ÏñËØÎ»ÖÃ
-	Color wgt;
-	double radius;
+	double radius2;
 	int N; //photon count
+	Color wgt;
+	int  brdfIndex;
 	Color flux;
-
+	
+	HPoint(const Vec _pos, const Vec _nor, const Vec _rD, int _x, int _y):pos(_pos),nor(_nor),rayDir(_rD), x(_x), y(_y){}
 };
 
-
+/*
 class HashNode {
 public:
 	HashNode(HPoint* i, HashNode* _next) { hp = i; next = _next; };
@@ -25,7 +27,7 @@ public:
 	HashNode* next;
 	// List* listAdd(HPoint*i);
 };
-
+*/
 
 class AABB {//°üÎ§ºÐ
 public:
@@ -47,20 +49,23 @@ public:
 
 class HashList {
 public:
-	HashNode* head;
-	HashNode* tail;
-
-	HashList() { head = tail = 0; }
+	std::vector<HPoint*> hList;
+	AABB hpBox;
+	double hash_s;
+	int num_hash;
+	std::vector<HPoint*>* hashGrid;
 	
-	void addNode(HPoint* hp){}
+	HashList(){}
+	
+	/*
+	void addNode(HPoint* hp){
+	}*/
+	void addNode(HPoint hp){ hList.push_back(&hp); }
+	void build_hash_grid(int w, int h);
+	int hash(const int ix, const int iy, const int iz){
+		return (unsigned int)((ix*73856093)^(iy*19349663)^(iz*83492791)) % num_hash;
+	}
 };
 
-/*
-struct List { HPoint *id; List *next; };
-List* ListAdd(HPoint *i, List* h) {
-	List* p = new List;
-	p->id = i;
-	p->next = h;
-	return p;
-}
-*/
+
+
