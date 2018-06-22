@@ -26,7 +26,7 @@ public:
 	
 	bool Intersect(const Ray& ray, double& dist, int& id);
 	void trace(const Ray &r, int dpt, int x, int y, double refrIndex);
-	void tracePass2(const Ray &r, int dpt, int x, int y, Vec& flux, double refrIndex);
+	void tracePass2(const Ray &r, int dpt, Vec& flux, double refrIndex);
 	Vec randVec();
 	void genp(Ray& r, Vec& flux);
 	void render();
