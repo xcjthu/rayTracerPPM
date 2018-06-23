@@ -27,7 +27,7 @@ public:
 	double GetReflection() { return refl; }
 	double GetRefraction() { return refr; }
 	double GetRefrIndex() { return refrIndex; }
-	Material(const Color c = Color(0, 0, 0), const double _diff = 0, double _refl = 0, double _refr = 0):color(c), diff(_diff), refl(_refl), refr(_refr){};
+	Material(const Color c = Color(0, 0, 0), const double _diff = 0, double _refl = 0, double _refr = 0) :color(c), diff(_diff), refl(_refl), refr(_refr) { refrIndex = 0; };
 	~Material() {};
 };
 

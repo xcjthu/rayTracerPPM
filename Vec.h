@@ -7,7 +7,8 @@ class Vec{
 public:
 	double x, y, z; // vector: position, also color (r,g,b)
 	Vec(double x_ = 0, double y_ = 0, double z_ = 0) { x = x_; y = y_; z = z_; }
-	Vec(const Vec& a) { x = a.x; y = a.y; z = a.z; }
+	// Vec(const Vec& a) { x = a.x; y = a.y; z = a.z; }
+	Vec(const Vec& a) :x(a.x), y(a.y), z(a.z) {}
 	inline Vec operator+(const Vec &b) const { return Vec(x + b.x, y + b.y, z + b.z); }
 	inline Vec operator-(const Vec &b) const { return Vec(x - b.x, y - b.y, z - b.z); }
 	inline Vec operator+(double b) const { return Vec(x + b, y + b, z + b); }
@@ -31,7 +32,7 @@ public:
 	Ray(const Vec _o = Vec(), const Vec _dir = Vec()) : o(_o), dir(_dir) {}
 	const Vec& getOri() { return o; }
 	const Vec& getDir() { return dir; }
-	Ray reflect(const Vec& n) { return Ray(x, r.dir - n*2.0*n.dot(r.d); }
+	//Ray reflect(const Vec& n) { return Ray(x, r.dir - n*2.0*n.dot(r.d); }
 	Vec o, dir;
 };
 

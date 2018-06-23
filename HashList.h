@@ -13,8 +13,9 @@ struct HPoint {
 	Color wgt;
 	int  brdfIndex;
 	Color flux;
+	//Vec f;
 	
-	HPoint(const Vec _pos, const Vec _nor, const Vec _rD, int _x, int _y):pos(_pos),nor(_nor),rayDir(_rD), x(_x), y(_y){}
+	HPoint(const Vec _pos, const Vec _nor, const Vec _rD, const Vec _f, int _x, int _y):pos(_pos),nor(_nor),rayDir(_rD), x(_x), y(_y), wgt(_f){}
 };
 
 /*
@@ -60,7 +61,7 @@ public:
 	/*
 	void addNode(HPoint* hp){
 	}*/
-	void addNode(HPoint hp){ hList.push_back(&hp); }
+	void addNode(HPoint* hp){ hList.push_back(hp); }
 	void build_hash_grid(int w, int h);
 	int hash(const int ix, const int iy, const int iz){
 		return (unsigned int)((ix*73856093)^(iy*19349663)^(iz*83492791)) % num_hash;

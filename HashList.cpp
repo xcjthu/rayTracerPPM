@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "HashList.h"
+#include <iostream>
 
 void HashList::build_hash_grid(int w, int h){
 	// find the bounding box of all the measurement points
@@ -46,4 +47,12 @@ void HashList::build_hash_grid(int w, int h){
 			}
 		}
 	}
+	/*
+	for (int i = 0; i < num_hash; ++i) {
+		for (int j = 0; j < hashGrid[i].size(); ++j) {
+			std::cout << "(" << hashGrid[i][j]->x << "," << hashGrid[i][j]->y << ")";
+		}
+		std::cout << std::endl;
+	}
+	*/
 }
