@@ -2,6 +2,11 @@
 
 #include "Vec.h"
 #include <string>
+#include <vector>
+#include "Bmp.h"
+#include <iostream>
+
+
 class Material {
 public:
 	Color color;
@@ -32,6 +37,30 @@ public:
 };
 
 
+class Texture {
+public:
+	Bmp bp;
+	Color getColor(double u, double v); // { return bp.GetColor(u % bp.GetH(), v % bp.GetW()); }
+	Texture(std::string inputImg) { bp.Input(inputImg); }
+	~Texture() { std::cout << "error!" << std::endl; }
+};
+
+struct smallBox {
+	Vec min, max;
+	smallBox() { reset(); }
+	void fit(const Vec& p) {
+		if (p.x<min.x)min.x = p.x; // min
+		if (p.y<min.y)min.y = p.y; // min
+		if (p.z<min.z)min.z = p.z; // min
+		max.x = p.x > max.x ? p.x : max.x;// MAX(p.x, max.x);
+		max.y = p.y > max.y ? p.y : max.y;// MAX(p.y, max.y);
+		max.z = p.z > max.z ? p.z : max.z;// MAX(p.z, max.z);
+	}
+	void reset() { min = Vec(1., 1., 1.) * 1e20; max = Vec(1., 1., 1.) * -1e20; }
+	bool in(const Vec& p) { return (p.x - min.x >= -1e-4) && (p.x - max.x <= 1e-4) && (p.y - min.y >= -1e-4) && (p.y - max.y <= 1e-4) && (p.z - min.z >= -1e-4) && (p.z - max.z <= 1e-4); }
+	double Intersect(const Ray& ray);
+};
+
 class Primitive
 {
 public:
@@ -48,8 +77,8 @@ public:
 	virtual double Intersect(const Ray& a_Ray) = 0;
 	virtual Vec getNormal(Vec& pos) = 0;
 	virtual void Light(bool a_light) { mLight = a_light; }
-	virtual Color getColor() { return material.getColor(); }
-	virtual std::string getType() = 0;
+	virtual Color getColor(Vec& pos) { return material.getColor(); }
+	virtual std::string getType() { return "Primitive"; };
 	double GetSpecular() { return material.GetSpecular(); }
 	double GetDiffuse() { return material.GetDiffuse(); }
 	double GetReflection() { return material.GetReflection(); }
@@ -72,8 +101,21 @@ public:
 	double radius;
 	Vec o;
 
-	Sphere(const Vec& _o, double r, Material& m) :o(_o), radius(r) { setMaterial(m); }
+	Texture* texture;
+
+
+	Sphere(const Vec& _o, double r, Material& m, std::string textfile = "None") :o(_o), radius(r) { 
+		setMaterial(m);  
+		if (textfile == "None")
+			texture = 0;
+		else
+			texture = new Texture(textfile);
+	}
+	// void setTexture(Texture* tmpt) { texture = tmpt; }
+
 	~Sphere() {}
+	// Vec crashPointLastTime;
+	Color getColor(Vec& pos);
 
 	double Intersect(const Ray& a_Ray);
 	Vec getNormal(Vec& pos) { return (pos - o).norm(); }
@@ -85,9 +127,74 @@ class Plane :public Primitive {
 public:
 	Vec nor;
 	double D;
+
+	Texture* texture;
 	
-	Plane(const Vec& n, double d, Material& m) :nor(n), D(d) { setMaterial(m); }
+	Plane(const Vec& n, double d, Material& m, std::string textFile = "None") :nor(n), D(d) { 
+		setMaterial(m); 
+		if (textFile == "None")
+			texture = 0;
+		else
+			texture = new Texture(textFile);
+	}
+	Color getColor(Vec& pos);
 	double Intersect(const Ray& a_Ray);
 	Vec getNormal(Vec& pos) { return nor; }
 	std::string getType() { return "PLANE"; }
 };
+
+
+class Bezier : public Primitive {
+public:
+	// std::vector<Vec> control;
+	int m, n;//二维曲线有w*h个控制点
+
+	Texture* texture;
+
+	smallBox aabb;
+
+	std::vector<std::vector<Vec>> control;
+	int* cn;
+	int* cn_1;
+	int* cm;
+	int* cm_1;
+
+	Vec apNor;
+	Vec getPoint(double u, double v);
+	Vec getNormal(Vec& pos) { return apNor; }
+	Vec getDpDu(double u, double v);
+	Vec getDpDv(double u, double v);
+	Color getColor(double u, double v);
+	Color lastCrashPointColor;
+	// Vec getNormal(double u, double v);
+	// Vec getNormal(double u, double v);
+	double Intersect(const Ray& a_ray);
+
+
+	Bezier(int _m, int _n, std::vector<Vec> points, std::string textFile = "None");
+
+};
+
+
+class Box:public Primitive {
+public:
+	std::vector<Bezier*> pris;
+	Vec apNor;
+
+	smallBox aabb;
+	Color lastCrashPointColor;
+	// Vec min, max; // axis aligned bounding box
+	void fit(Bezier* thing);
+	double Intersect(const Ray& ray);
+	
+	Vec getNormal(Vec& pos) { return apNor; }
+	Color getColor(Vec& pos) { return lastCrashPointColor; }
+	// void fit(const Vec &p);
+	
+	// void reset() { min = Vec(1e20, 1e20, 1e20); max = Vec(-1e20, -1e20, -1e20); }
+
+	Box(std::string filePath, Material& ma, std::string textFile = "None");
+	Box(Material& ma) { setMaterial(ma); }
+};
+
+

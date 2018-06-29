@@ -30,7 +30,7 @@ public:
 };
 */
 
-class AABB {//包围盒
+class AABB {//非常简单的包围盒，仅仅用于计算普通的大小。
 public:
 	Vec min, max; // axis aligned bounding box
 	void fit(const Vec &p)
@@ -55,7 +55,7 @@ public:
 	double hash_s;
 	int num_hash;
 	std::vector<HPoint*>* hashGrid;
-	
+	void clear();
 	HashList(){}
 	
 	/*

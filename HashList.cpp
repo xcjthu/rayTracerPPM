@@ -2,6 +2,14 @@
 #include "HashList.h"
 #include <iostream>
 
+
+void HashList::clear() {
+	for (int i = 0; i < hList.size(); ++i) {
+		delete hList[i];
+	}
+	hList.clear();
+	hashGrid->clear();
+}
 void HashList::build_hash_grid(int w, int h){
 	// find the bounding box of all the measurement points
 	hpBox.reset();//包围了所有hitPoint的包围盒

@@ -35,7 +35,7 @@ public:
 	Vec randVec();
 	void genp(Ray& r, Vec& flux);
 	void render();
-	void save();
+	void save(int passNum);
 	// tone mapping and gamma correction
 	int toInt(double x) { return int(pow(1 - exp(-x), 1 / 2.2) * 255 + .5); }
 	Engine(int _w = 1024, int _h = 768) : w(_w), h(_h), bp(_h, _w) { srand(19981102); scene = new Scene; }

@@ -4,6 +4,7 @@
 
 const double ALPHA = 0.7;
 
+
 Engine::~Engine()
 {
 }
@@ -36,11 +37,11 @@ void Engine::trace(const Ray &r, int dpt, int x, int y, double refrIndex, const 
 	if (!Intersect(r, dist, id) || dpt >= 20) return;
 	
 	// std::cout << "intersect\n" << std::endl;
-
-	Primitive* obj = scene->getPrim(id); //相交的物体
-	Color f = obj->getColor();
-
 	Vec ap = r.o + r.dir * dist; //相交的交点
+	Primitive* obj = scene->getPrim(id); //相交的物体
+	Color f = obj->getColor(ap);
+
+	
 	Vec n = obj->getNormal(ap).norm();
 
 	Vec nl = n.dot(r.dir)<0 ? n : n*-1;
@@ -107,7 +108,7 @@ void Engine::trace0(const Ray &r, int dpt, bool m, const Vec &fl, const Vec &adj
 	Vec x = r.o + r.dir*t;//交点
 	// n = (x - obj->p).norm(), //交点处圆的法向量
 	Vec n = obj->getNormal(x);
-	Vec f = obj->getColor();//？？
+	Vec f = obj->getColor(x);//？？
 	Vec nl = n.dot(r.dir)<0 ? n : n*-1; //调整方向后的法向量
 	double p = f.x>f.y&&f.x>f.z ? f.x : f.y>f.z ? f.y : f.z;//f中最大值，RGB最大值？
 	// if (p == 0) p = 0.001;
@@ -194,10 +195,13 @@ Vec Engine::randVec() {
 	return Vec(cos(cost1), sin(cost1) * cos(cost2), sin(cost1) * sin(cost2));
 }
 
+double randNum() { return double(rand()) / RAND_MAX; }
 void Engine::genp(Ray& ray, Vec& flux) {
+	double W = 10, H = 10;
+
 	flux = Vec(2500, 2500, 2500) * (PI * 4.0);
 	ray.dir = randVec();
-	ray.o = Vec(50, 60, 85); //光源
+	ray.o = Vec(50 + randNum() * W, 60, 85 + randNum() * H); //光源
 
 }
 
@@ -213,7 +217,7 @@ void Engine::tracePass2(const Ray& r, int dpt, Vec& flux, double refrIndex){
 	
 	Vec ap = r.o + r.dir * dist; //相交的交点
 	Vec n = obj->getNormal(ap).norm();
-	Color f = obj->getColor();
+	Color f = obj->getColor(ap);
 
 	double p = f.x>f.y&&f.x>f.z ? f.x : f.y>f.z ? f.y : f.z;//吸收的概率
 	
@@ -282,8 +286,8 @@ double toDouble(double x) {
 	return pow(1 - exp(-x), 1 / 2.2);
 }
 
-void Engine::save() {
-
+void Engine::save(int passNum) {
+	
 	for (int i = 0; i < w; ++i) {
 		for (int j = 0; j < h; ++j) {
 			image[j * w + i].x = image[j * w + i].y = image[j * w + i].z = 0;
@@ -293,7 +297,7 @@ void Engine::save() {
 	for (int i = 0; i < hashL.hList.size(); ++i) {
 		int tmpx = hashL.hList[i]->x;
 		int tmpy = hashL.hList[i]->y;
-		image[tmpy * w + tmpx] = image[tmpy * w + tmpx] + hashL.hList[i]->flux * (1.0 / (PI * hashL.hList[i]->radius2 * num_photon * 1000.0));
+		image[tmpy * w + tmpx] = image[tmpy * w + tmpx] + hashL.hList[i]->flux * (1.0 / (PI * hashL.hList[i]->radius2 * passNum * 1000.0));
 
 	}
 
@@ -304,6 +308,7 @@ void Engine::save() {
 	}
 
 	bp.Output("D:/learn/graphics/image.bmp");
+	std::cout << "save" << std::endl;
 }
 
 void Engine::render() {
@@ -321,6 +326,7 @@ void Engine::render() {
 			bool tmpb = false;
 			Vec d = cx * ((x + 0.5) / w - 0.5) + cy * (-(y + 0.5) / h + 0.5) + cam.dir;
 			// trace(Ray(cam.o + d * 140, d.norm()), 0, x, y, 1.0, Vec(1, 1, 1));
+			// std::cout << "x:" << x << " y:" << y << std::endl;
 			trace0(Ray(cam.o + d * 140, d.norm()), 0, true, Vec(), Vec(1, 1, 1), x, y);
 			// std::cout << hashL.hList.size() << ":" << hashL.hList[hashL.hList.size() - 1]->flux.x << std::endl;
 		}
@@ -329,11 +335,6 @@ void Engine::render() {
 	hashL.build_hash_grid(w, h);
 	std::cout << "\nsize:" << hashL.hList.size() << std::endl;
 	
-	/*
-	for (int i = 0; i < hashL.hList.size(); ++i) {
-		std::cout << "flux: (" << hashL.hList[i]->flux.x << "," << hashL.hList[i]->flux.y << "," << hashL.hList[i]->flux.z << ")" << std::endl;
-		std::cout << "x:" << hashL.hList[i]->x << " y:" << hashL.hList[i]->y << std::endl;
-	}*/
 
 	// int num_photon = 1000;
 	
@@ -354,12 +355,13 @@ void Engine::render() {
 			trace0(r, 0, 0>1, f, vw, 0, 0);
 			//tracePass2(r, 0, f, 1.0);
 		}
-		if (i % 1000 == 9999) save();
+		if (i % 1000 == 999) save(i);
 	}
 	
 	std::cout << std::endl;
-	// save();
+	save(num_photon);
 	
+	/*
 	// save the image after tone mapping and gamma correction
 	FILE* f;
 	fopen_s(&f, "D:/learn/graphics/image.ppm", "w");
@@ -367,6 +369,7 @@ void Engine::render() {
 	for (int i = 0; i< w * h; i++) {
 		fprintf(f, "%d %d %d ", toInt(image[i].x), toInt(image[i].y), toInt(image[i].z));
 	}
+	*/
 	
 }
 
@@ -374,32 +377,18 @@ void Scene::initScene() {
 	prim = new Primitive*[20];
 	numPrim = 9;
 	prim[0] = new Plane(Vec(1, 0, 0), -1, Material(Color(0.75, 0.25, 0.25), 1.0, 0.0, 0.0));
-	prim[1] = new Plane(Vec(-1, 0, 0), 99, Material(Color(0.25, 0.25, 0.25), 1.0, 0.0, 0.0));
-	prim[2] = new Plane(Vec(0, 0, 1), 0, Material(Color(0.75, 0.75, 0.75), 1.0, 1.0, 0.0));
+	prim[1] = new Plane(Vec(-1, 0, 0), 99, Material(Color(0.25, 0.25, 0.75), 1.0, 0.0, 0.0));
+	prim[2] = new Plane(Vec(0, 0, 1), 0, Material(Color(0.25, 0.25, 0.25), 0.0, 1.0, 0.0));
 	prim[3] = new Plane(Vec(0, 0, -1), 170, Material(Color(0, 0, 0), 1.0, 0.0, 0.0));
-	prim[4] = new Plane(Vec(0, 1, 0), 0, Material(Color(0.75, 0.75, 0.75), 1.0, 0.0, 0.0));
+	prim[4] = new Plane(Vec(0, 1, 0), 0, Material(Color(1.0, 1.0, 1.0), 1.0, 1.0, 0.0));
 	prim[5] = new Plane(Vec(0, -1, 0), 81.6, Material(Color(0.75, 0.75, 0.75), 1.0, 0.0, 0.0));
-	/*
-	prim[0] = new Sphere(Vec(1e5 + 1, 40.8, 81.6), 1e5, Material(Color(.75, .25, .25), 1., 0., 0.));
-	prim[1] = new Sphere(Vec(-1e5 + 99, 40.8, 81.6), 1e5, Material(Color(.25, .25, .25), 1., 0., 0.));
-	prim[2] = new Sphere(Vec(50, 40.8, 1e5), 1e5, Material(Color(.75, .75, .75), 1., 0., 0.));
-	prim[3] = new Sphere(Vec(50, 40.8, -1e5 + 170), 1e5, Material(Color(), 1., 0., 0.));
-	prim[4] = new Sphere(Vec(50, 1e5, 81.6), 1e5, Material(Color(.75, .75, .75), 1., 0., 0.));
-	prim[5] = new Sphere(Vec(50, -1e5 + 81.6, 81.6), 1e5, Material(Color(.75, .75, .75), 1., 0., 0.));
-	*/
 
-	prim[6] = new Sphere(Vec(27, 16.5, 47), 16.5, Material(Color(1, 1, 1)*0.999, 0.0, 1.0, 0.0));
-	prim[7] = new Sphere(Vec(73, 16.5, 88), 16.5, Material(Color(1, 1, 1)*0.999, 0.0, 0.0, 1.0));
-	prim[7]->material.SetRefrIndex(1.5);
-	prim[8] = new Sphere(Vec(50, 8.5, 60), 8.5, Material(Color(1, 1, 1)*0.999, 1.0, 0.0, 0.0));
-	// prim[0] = new Sphere(1e5, Vec(1e5 + 1, 40.8, 81.6), Vec(.75, .25, .25), DIFF),//Left
-	// prim[1] = new Sphere(1e5, Vec(-1e5 + 99, 40.8, 81.6), Vec(.25, .25, .75), DIFF),//Right
-	// prim[2] = new Sphere(1e5, Vec(50, 40.8, 1e5), Vec(.75, .75, .75), DIFF),//Back
-	// prim[3] = new Sphere(1e5, Vec(50, 40.8, -1e5 + 170), Vec(), DIFF),//Front
-	// prim[4] = new Sphere(1e5, Vec(50, 1e5, 81.6), Vec(.75, .75, .75), DIFF),//Bottomm
-	// prim[5] = new Sphere(1e5, Vec(50, -1e5 + 81.6, 81.6), Vec(.75, .75, .75), DIFF),//Top
-	// prim[6] = new Sphere(16.5, Vec(27, 16.5, 47), Vec(1, 1, 1)*.999, SPEC),//Mirror
-	// prim[7] = new Sphere(16.5, Vec(73, 16.5, 88), Vec(1, 1, 1)*.999, REFR),//Glass
-	// prim[8] = new Sphere(8.5, Vec(50, 8.5, 60), Vec(1, 1, 1)*.999, DIFF)
+	// 
+	// prim[6] = new Sphere(Vec(27, 16.5, 47), 16.5, Material(Color(1, 1, 1)*0.999, 0.0, 1.0, 0.0));
+	prim[6] = new Sphere(Vec(83, 25, 88), 10.5, Material(Color(1, 1, 1)*0.999, 0.0, 0.0, 1.0));//, "D:/learn/graphics/ppm/texture.bmp");
+	
+	//prim[6]->material.SetRefrIndex(1.5);
+	prim[7] = new Sphere(Vec(50, 11, 70), 10.5, Material(Color(0.75, 0.25, 0.25)*0.999, 1.0, 1.0, 0.0), "D:/learn/graphics/ppm/vase.bmp");
+	prim[8] = new Box("D:/learn/graphics/teapot/teapot.bpt", Material(Color(.25, .75, .75), 0., 1., 0.));// , "D:/learn/graphics/ppm/kamen.bmp");
 	
 }
