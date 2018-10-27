@@ -40,9 +40,8 @@ public:
 class Texture {
 public:
 	Bmp bp;
-	Color getColor(double u, double v); // { return bp.GetColor(u % bp.GetH(), v % bp.GetW()); }
+	Color getColor(double u, double v); // u,v参数
 	Texture(std::string inputImg) { bp.Input(inputImg); }
-	~Texture() { std::cout << "error!" << std::endl; }
 };
 
 struct smallBox {
@@ -131,12 +130,16 @@ public:
 	Texture* texture;
 	
 	Plane(const Vec& n, double d, Material& m, std::string textFile = "None") :nor(n), D(d) { 
+		if (n.x != 0) axis = 1;
+		else if (n.y != 0) axis = 2;
+		else axis = 3;
 		setMaterial(m); 
 		if (textFile == "None")
 			texture = 0;
 		else
 			texture = new Texture(textFile);
 	}
+	int axis = 0;
 	Color getColor(Vec& pos);
 	double Intersect(const Ray& a_Ray);
 	Vec getNormal(Vec& pos) { return nor; }
@@ -146,33 +149,25 @@ public:
 
 class Bezier : public Primitive {
 public:
-	// std::vector<Vec> control;
-	int m, n;//二维曲线有w*h个控制点
-
-	Texture* texture;
-
-	smallBox aabb;
-
-	std::vector<std::vector<Vec>> control;
+	int m, n;//曲面有w*h个控制点
+	Texture* texture;//纹理
+	smallBox aabb;//包围盒
+	std::vector<std::vector<Vec>> control;//控制点
+	//提前计算好的一些参数
 	int* cn;
 	int* cn_1;
 	int* cm;
 	int* cm_1;
 
-	Vec apNor;
-	Vec getPoint(double u, double v);
-	Vec getNormal(Vec& pos) { return apNor; }
-	Vec getDpDu(double u, double v);
+	Vec apNor;//上一次求交的交点
+	Vec getPoint(double u, double v);//根据参数求曲面上的点
+	Vec getNormal(Vec& pos) { return apNor; }//求法向量
+	Vec getDpDu(double u, double v);//求导
 	Vec getDpDv(double u, double v);
-	Color getColor(double u, double v);
-	Color lastCrashPointColor;
-	// Vec getNormal(double u, double v);
-	// Vec getNormal(double u, double v);
-	double Intersect(const Ray& a_ray);
-
-
+	Color getColor(double u, double v);//获取点对应的纹理的颜色
+	Color lastCrashPointColor;//上一次求交的交点的颜色
+	double Intersect(const Ray& a_ray);//求交，并且返回交点
 	Bezier(int _m, int _n, std::vector<Vec> points, std::string textFile = "None");
-
 };
 
 

@@ -8,9 +8,13 @@ void HashList::clear() {
 		delete hList[i];
 	}
 	hList.clear();
-	hashGrid->clear();
+	if (hashGrid != 0)
+		hashGrid->clear();
+	num_hash = 0;
 }
+
 void HashList::build_hash_grid(int w, int h){
+	//clear();
 	// find the bounding box of all the measurement points
 	hpBox.reset();//包围了所有hitPoint的包围盒
 	

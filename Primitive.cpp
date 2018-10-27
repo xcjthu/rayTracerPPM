@@ -85,7 +85,10 @@ Color Sphere::getColor(Vec& pos) {
 	double tmpAlpha = det.y / (radius * sin(acos(tmpTheta)));
 	//std::cout << texture << std::endl;
 	//std::cout << tmpAlpha << " " << tmpAlpha << std::endl;
-	return texture->getColor(acos(tmpTheta)/(2 * 3.1515926), acos(tmpAlpha)/(2 * 3.1515926));
+	double tmpu = (tmpTheta + 1.) / 2;//(acos(tmpTheta) + 2 * 3.1416) / (4 * 3.1416);
+	double tmpv = (tmpAlpha + 1.) / 2;// (acos(tmpAlpha) + 2 * 3.1416) / (4 * 3.1416);
+	// std::cout << tmpu << " " << tmpv << std::endl;
+	return texture->getColor(tmpu, tmpv);
 }
 
 
@@ -106,8 +109,18 @@ Color Plane::getColor(Vec& pos) {
 	double tmpu;
 	double tmpv;
 	// tmpu = (pos - o)
-	tmpu = (pos.x * 0.1) - int(pos.x * 0.1);
-	tmpv = (pos.z * 0.1) - int(pos.z * 0.1);
+	if (axis == 1) {
+		tmpv = (pos.y * 0.01) - int(pos.y * 0.01);
+		tmpu = (pos.z * 0.01) - int(pos.z * 0.01);
+	}
+	if (axis == 2) {
+		tmpu = (pos.x * 0.01) - int(pos.x * 0.01);
+		tmpv = (pos.z * 0.01) - int(pos.z * 0.01);
+	}
+	if (axis == 3) {
+		tmpu = (pos.x * 0.01) - int(pos.x * 0.01);
+		tmpv = (pos.y * 0.02) - int(pos.y * 0.02);
+	}
 	return texture->getColor(tmpu, tmpv);
 }
 
@@ -213,22 +226,12 @@ double Bezier::Intersect(const Ray& ray) {
 	double dist = aabb.Intersect(ray);
 	if (dist > 1e19) return 1e20;
 	
-	// double ans = dist;
-	for (int index = 1; index < 10; ++index) {
-		// Vec dpdu(0, 0, 0);
-		// Vec dpdv(0, 0, 0);
-		Vec initAns(dist, 0.1*index, 0.1*index);
-
-		// Eigen::Vector3d p;
-
-		// p << initAns.x, initAns.y, initAns.z;
+	for (int index = 1; index < 20; ++index) {
+		Vec initAns(dist, 0.05*index, 0.05*index);
 		int num = 0;
 		const int th = 20;
 
 		while (num < th) {
-			// dpdu = Vec();
-			// dpdv = Vec();
-			// Eigen::Vector3d p;
 			double t = initAns.x, u = initAns.y, v = initAns.z;
 			// std::cout << "t: " << t << "u: " << u << "v: " << v << std::endl;
 			
@@ -290,9 +293,7 @@ double Bezier::Intersect(const Ray& ray) {
 		if (normal.dot(ray.dir) < 0) apNor = normal;
 		else apNor = normal * -1;
 		lastCrashPointColor = getColor(ansu, ansv);
-		// std::cout << ansu << " " << ansv << std::endl;
 		return anst;
-		// break;
 	}
 	return 1e20;
 	// return ans == dist ? 1e20 : ans;
@@ -314,7 +315,7 @@ Box::Box(std::string filepath, Material& ma, std::string textFile) {
 		for (int j = 0; j < (m + 1) * (n + 1); ++j) {
 			double tmpx, tmpy, tmpz;
 			fscanf_s(f, "%lf %lf %lf", &tmpx, &tmpz, &tmpy);
-			tmp.push_back(Vec(tmpx + 1, tmpy, tmpz + 5) * 8 + 25);
+			tmp.push_back(Vec(tmpx + 3, tmpy - 2, tmpz + 10) * 5 + 25);
 			// Vec abcdef = Vec(tmpx, tmpy, tmpz) * 5 + 20;
 			// std::cout << abcdef.x << " " << abcdef.y << " " << abcdef.z << std::endl;
 		}

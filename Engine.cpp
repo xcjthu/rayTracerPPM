@@ -28,6 +28,7 @@ double hal(int d) {
 	return ((double)rand()) / RAND_MAX;
 }
 
+/*
 void Engine::trace(const Ray &r, int dpt, int x, int y, double refrIndex, const Vec& adj) {
 	//参数意义 r: 光线, dpt: 追踪深度
 	double dist;
@@ -92,7 +93,7 @@ void Engine::trace(const Ray &r, int dpt, int x, int y, double refrIndex, const 
 		}
 	}
 }
-
+*/
 
 
 void Engine::trace0(const Ray &r, int dpt, bool m, const Vec &fl, const Vec &adj, int pixX, int pixY)
@@ -101,16 +102,16 @@ void Engine::trace0(const Ray &r, int dpt, bool m, const Vec &fl, const Vec &adj
 	int id;
 
 	dpt++;
-	if (!Intersect(r, t, id) || (dpt >= 20))return;
+	if (!Intersect(r, t, id) || (dpt >= 10))return;
 
 	int d3 = dpt * 3;
 	Primitive* obj = scene->getPrim(id);
 	Vec x = r.o + r.dir*t;//交点
 	// n = (x - obj->p).norm(), //交点处圆的法向量
 	Vec n = obj->getNormal(x);
-	Vec f = obj->getColor(x);//？？
+	Vec f = obj->getColor(x);//
 	Vec nl = n.dot(r.dir)<0 ? n : n*-1; //调整方向后的法向量
-	double p = f.x>f.y&&f.x>f.z ? f.x : f.y>f.z ? f.y : f.z;//f中最大值，RGB最大值？
+	double p = f.x>f.y&&f.x>f.z ? f.x : f.y>f.z ? f.y : f.z;//f中最大值，RGB最大值,作为吸收的概率
 	// if (p == 0) p = 0.001;
 	double random = ((double)rand()) / RAND_MAX;
 
@@ -154,23 +155,23 @@ void Engine::trace0(const Ray &r, int dpt, bool m, const Vec &fl, const Vec &adj
 					}
 				}
 			}
-			if (hal(d3 + 1)<p) trace0(Ray(x, d), dpt, m, f.mul(fl)*(1./ p), adj, pixX, pixY);
+			if (hal(d3 + 1)<p) trace0(Ray(x, d), dpt, m, f.mul(fl)*(1./ p), f.mul(adj), pixX, pixY);
 		}
 
 	}
 	if (obj->GetReflection() > 0) {
 		// mirror
-		trace0(Ray(x, r.dir - n*2.0*n.dot(r.dir)), dpt, m, f.mul(fl), f.mul(adj), pixX, pixY);
+		trace0(Ray(x, r.dir - n*2.0*n.dot(r.dir)), dpt, m, f.mul(fl), adj, pixX, pixY);
 
 	}
 	if (obj->GetRefraction() > 0) {
 		// glass
 		Ray lr(x, r.dir - n*2.0*n.dot(r.dir));
 		bool into = (n.dot(nl)>0.0);
-		double nc = 1.0, nt = 1.5, nnt = into ? nc / nt : nt / nc, ddn = r.dir.dot(nl), cos2t;
+		double nc = 1.0, nt = 1.3, nnt = into ? nc / nt : nt / nc, ddn = r.dir.dot(nl), cos2t;
 
 		// total internal reflection
-		if ((cos2t = 1 - nnt*nnt*(1 - ddn*ddn))<0) return trace0(lr, dpt, m, fl, adj, pixX, pixY);
+		if ((cos2t = 1 - nnt*nnt*(1 - ddn*ddn))<0) return trace0(lr, dpt, m, f.mul(fl), adj, pixX, pixY);
 
 		Vec td = (r.dir*nnt - n*((into ? 1 : -1)*(ddn*nnt + sqrt(cos2t)))).norm();
 		double a = nt - nc, b = nt + nc, R0 = a*a / (b*b), c = 1 - (into ? -ddn : td.dot(n));
@@ -183,7 +184,7 @@ void Engine::trace0(const Ray &r, int dpt, bool m, const Vec &fl, const Vec &adj
 		else {
 			// photon ray (pick one via Russian roulette)
 			
-			(hal(d3 - 1)<P) ? trace0(lr, dpt, m, fl, fa, pixX, pixY) : trace0(rr, dpt, m, fl, fa, pixX, pixY);
+			(hal(d3 - 1)<P) ? trace0(lr, dpt, m, f.mul(fl), fa, pixX, pixY) : trace0(rr, dpt, m, f.mul(fl), fa, pixX, pixY);
 		}
 	}
 }
@@ -196,15 +197,16 @@ Vec Engine::randVec() {
 }
 
 double randNum() { return double(rand()) / RAND_MAX; }
-void Engine::genp(Ray& ray, Vec& flux) {
-	double W = 10, H = 10;
 
-	flux = Vec(2500, 2500, 2500) * (PI * 4.0);
+void Engine::genp(Ray& ray, Vec& flux) {
+	double W = 20, H = 20;
+
+	flux = Vec(2500, 2500, 2500) * (PI * 2);
 	ray.dir = randVec();
-	ray.o = Vec(50 + randNum() * W, 60, 85 + randNum() * H); //光源
+	ray.o = Vec(40 + randNum() * W, 81.599, 80 + randNum() * H); //光源
 
 }
-
+/*
 void Engine::tracePass2(const Ray& r, int dpt, Vec& flux, double refrIndex){
 	double dist;
 	int id;
@@ -280,13 +282,13 @@ void Engine::tracePass2(const Ray& r, int dpt, Vec& flux, double refrIndex){
 		tracePass2(rr, dpt, flux, nt);
 	}	
 }
-
+*/
 
 double toDouble(double x) {
 	return pow(1 - exp(-x), 1 / 2.2);
 }
 
-void Engine::save(int passNum) {
+void Engine::save(int passNum, int thread) {
 	
 	for (int i = 0; i < w; ++i) {
 		for (int j = 0; j < h; ++j) {
@@ -300,35 +302,38 @@ void Engine::save(int passNum) {
 		image[tmpy * w + tmpx] = image[tmpy * w + tmpx] + hashL.hList[i]->flux * (1.0 / (PI * hashL.hList[i]->radius2 * passNum * 1000.0));
 
 	}
-
+	
 	for (int i = 0; i < h; ++i) {
 		for (int j = 0; j < w; ++j) {
+			//image[i * w + j].x = toDouble(image[i * w + j].x);
+			//image[i * w + j].y = toDouble(image[i * w + j].y);
+			//image[i * w + j].z = toDouble(image[i * w + j].z);
 			bp.SetColor(i, j, Color(toDouble(image[i * w + j].x), toDouble(image[i * w + j].y), toDouble(image[i * w + j].z)));
 		}
 	}
-
-	bp.Output("D:/learn/graphics/image.bmp");
+	// std::string filename = "D:/learn/graphics/image0.bmp";
+	// filename[23] = '0' + thread;
+	// bp.Output(filename);
+	
 	std::cout << "save" << std::endl;
 }
 
-void Engine::render() {
+void Engine::render(int thread) {
 	// int w = 1024, h = 768;
 
 	image = new Color[w * h + 1];
+
+	double apertue = 2.0;
 
 	// trace eye rays and store measurement points
 	Ray cam(Vec(50, 48, 295.6), Vec(0, -0.042612, -1).norm());
 	Vec cx = Vec(w*.5135 / h), cy = (cx % cam.dir).norm()*.5135, *c = new Vec[w*h], vw;
 	for (int y = 0; y<h; y++) {
-		fprintf(stderr, "\rHitPointPass %5.2f%%", 100.0*y / (h - 1));
+		fprintf(stderr, "\r%d:HitPointPass %5.2f%%", thread, 100.0*y / (h - 1));
 		for (int x = 0; x<w; x++) {
-			// pixel_index = x + y * w;
 			bool tmpb = false;
 			Vec d = cx * ((x + 0.5) / w - 0.5) + cy * (-(y + 0.5) / h + 0.5) + cam.dir;
-			// trace(Ray(cam.o + d * 140, d.norm()), 0, x, y, 1.0, Vec(1, 1, 1));
-			// std::cout << "x:" << x << " y:" << y << std::endl;
-			trace0(Ray(cam.o + d * 140, d.norm()), 0, true, Vec(), Vec(1, 1, 1), x, y);
-			// std::cout << hashL.hList.size() << ":" << hashL.hList[hashL.hList.size() - 1]->flux.x << std::endl;
+			trace0(Ray(cam.o + d * 140, (d.norm() + randVec() * 0.001).norm()), 0, true, Vec(), Vec(1, 1, 1), x, y);
 		}
 	}
 
@@ -337,58 +342,71 @@ void Engine::render() {
 	
 
 	// int num_photon = 1000;
-	
-
 	vw = Vec(1, 1, 1);
-	// #pragma omp parallel for schedule(dynamic, 1)
+
+	#pragma omp parallel for schedule(dynamic, 1)
 	for (int i = 0; i<num_photon; i++) {
 		double p = 100.*(i + 1) / num_photon;
-		// std::cout << i << std::endl;
-		fprintf(stderr, "\rPhotonPass %5.2f%%", p);
-		//std::cout << "abcdefg" << std::endl;
+		fprintf(stderr, "\r%dPhotonPass %5.2f%%", thread, p);
 		int m = 1000 * i;
 		Ray r;
 		Vec f;
 		for (int j = 0; j<1000; j++) {
-			
 			genp(r, f);
 			trace0(r, 0, 0>1, f, vw, 0, 0);
-			//tracePass2(r, 0, f, 1.0);
 		}
-		if (i % 1000 == 999) save(i);
+		if (i % 1000 == 999) save(i, thread);
 	}
+	save(num_photon, thread);
 	
-	std::cout << std::endl;
-	save(num_photon);
+}
+
+void Scene::initScene1() {
+	prim = new Primitive*[20];
+	numPrim = 7;
+	prim[0] = new Plane(Vec(1, 0, 0), -1, Material(Color(0.75, 0.25, 0.25), 1.0, 0.0, 0.0));
+	prim[1] = new Plane(Vec(-1, 0, 0), 99, Material(Color(0.25, 0.25, 0.75), 1.0, 0.0, 0.0));
+	prim[2] = new Plane(Vec(0, 0, 1), 0, Material(Color(0.25, 0.25, 0.25), 1.0, 0.0, 0.0));
+	prim[3] = new Plane(Vec(0, 0, -1), 170, Material(Color(0, 0, 0), 1.0, 0.0, 0.0));
+	prim[4] = new Plane(Vec(0, 1, 0), 0, Material(Color(1.0, 1.0, 1.0), 1.0, 0.0, 0.0));
+	prim[5] = new Plane(Vec(0, -1, 0), 81.6, Material(Color(0.75, 0.75, 0.75), 1.0, 0.0, 0.0));
+
+	// 
+	// prim[6] = new Sphere(Vec(27, 16.5, 47), 16.5, Material(Color(1, 1, 1)*0.999, 0.0, 1.0, 0.0));
+	prim[6] = new Sphere(Vec(55, 25, 90), 10.5, Material(Color(1, 1, 1)*0.999, 1.0, 0.0, 0.0), "D:/learn/graphics/ppm/vase.bmp");//, "D:/learn/graphics/ppm/texture.bmp");
 	
-	/*
-	// save the image after tone mapping and gamma correction
-	FILE* f;
-	fopen_s(&f, "D:/learn/graphics/image.ppm", "w");
-	fprintf(f, "P3\n%d %d\n%d\n", w, h, 255);
-	for (int i = 0; i< w * h; i++) {
-		fprintf(f, "%d %d %d ", toInt(image[i].x), toInt(image[i].y), toInt(image[i].z));
-	}
-	*/
+	//prim[6]->material.SetRefrIndex(1.5);
+	prim[7] = new Sphere(Vec(50, 11, 70), 10.5, Material(Color(1, 1, 1)*0.999, 0.0, 0.0, 1.0));
+	prim[8] = new Box("D:/learn/graphics/teapot/teapot.bpt", Material(Color(.25, .75, .75), 1., 0., 0.));// , "D:/learn/graphics/ppm/kamen.bmp");
 	
 }
 
 void Scene::initScene() {
 	prim = new Primitive*[20];
-	numPrim = 9;
-	prim[0] = new Plane(Vec(1, 0, 0), -1, Material(Color(0.75, 0.25, 0.25), 1.0, 0.0, 0.0));
-	prim[1] = new Plane(Vec(-1, 0, 0), 99, Material(Color(0.25, 0.25, 0.75), 1.0, 0.0, 0.0));
-	prim[2] = new Plane(Vec(0, 0, 1), 0, Material(Color(0.25, 0.25, 0.25), 0.0, 1.0, 0.0));
+	numPrim = 13;
+	prim[0] = new Plane(Vec(1, 0, 0), -1, Material(Color(0.75, 0.25, 0.25), 1.0, 0.0, 0.0), "D:/learn/graphics/ppm/marble_v1.bmp");
+	prim[1] = new Plane(Vec(-1, 0, 0), 99, Material(Color(0.25, 0.25, 0.75), 1.0, 0.0, 0.0), "D:/learn/graphics/ppm/marble_v1.bmp");
+	prim[2] = new Plane(Vec(0, 0, 1), -20, Material(Color(0.25, 0.25, 0.25), 1.0, 0.0, 0.0), "D:/learn/graphics/ppm/marble_v1.bmp");
 	prim[3] = new Plane(Vec(0, 0, -1), 170, Material(Color(0, 0, 0), 1.0, 0.0, 0.0));
-	prim[4] = new Plane(Vec(0, 1, 0), 0, Material(Color(1.0, 1.0, 1.0), 1.0, 1.0, 0.0));
+	prim[4] = new Plane(Vec(0, 1, 0), 0, Material(Color(1.0, 1.0, 1.0), 1.0, 0.0, 0.0), "D:/learn/graphics/ppm/floorboard.bmp");
 	prim[5] = new Plane(Vec(0, -1, 0), 81.6, Material(Color(0.75, 0.75, 0.75), 1.0, 0.0, 0.0));
+
+	prim[6] = new Sphere(Vec(63, 6, 110), 6, Material(Color(1., 1., 1.) * 0.999, 0.0, 0.0, 1.0));
+	prim[7] = new Sphere(Vec(75, 6, 120), 6, Material(Color(0.5, 0.5, 0.75), 0.0, 0.0, 1.));
+	prim[8] = new Sphere(Vec(90, 6, 110), 6, Material(Color(0.5, 0.75, 0.5), 0., 0.0, 1.));
+	prim[9] = new Sphere(Vec(60, 6.4, 90), 6.4, Material(Color(0.75, 0.5, 0.5), 0., 0., 1.));
+	prim[10] = new Sphere(Vec(80, 12, 80), 12, Material(Color(0.25, 0.5, 0.5), 1.0, 0.0, 0.0), "D:/learn/graphics/ppm/green_marble.bmp");
+
+	prim[11] = new Sphere(Vec(20, 10.5, 90), 10.5, Material(Color(1., 1., 1.) * 0.999, 0., 1., 0.));
+	prim[12] = new Box("D:/learn/graphics/teapot/teapot.bpt", Material(Color(.25, .75, .75), 1., 0., 0.), "D:/learn/graphics/ppm/vase_small.bmp");
+
 
 	// 
 	// prim[6] = new Sphere(Vec(27, 16.5, 47), 16.5, Material(Color(1, 1, 1)*0.999, 0.0, 1.0, 0.0));
-	prim[6] = new Sphere(Vec(83, 25, 88), 10.5, Material(Color(1, 1, 1)*0.999, 0.0, 0.0, 1.0));//, "D:/learn/graphics/ppm/texture.bmp");
-	
-	//prim[6]->material.SetRefrIndex(1.5);
-	prim[7] = new Sphere(Vec(50, 11, 70), 10.5, Material(Color(0.75, 0.25, 0.25)*0.999, 1.0, 1.0, 0.0), "D:/learn/graphics/ppm/vase.bmp");
-	prim[8] = new Box("D:/learn/graphics/teapot/teapot.bpt", Material(Color(.25, .75, .75), 0., 1., 0.));// , "D:/learn/graphics/ppm/kamen.bmp");
-	
+	//prim[6] = new Sphere(Vec(83, 25, 88), 10.5, Material(Color(1, 1, 1)*0.999, 1.0, 0.0, 0.0), "D:/learn/graphics/ppm/vase.bmp");//, "D:/learn/graphics/ppm/texture.bmp");
+
+																																 //prim[6]->material.SetRefrIndex(1.5);
+	// prim[6] = new Sphere(Vec(50, 11, 70), 10.5, Material(Color(1, 1, 1)*0.999, 0.0, 0.0, 1.0));
+	// prim[7] = new Box("D:/learn/graphics/teapot/teapot.bpt", Material(Color(.25, .75, .75), 1., 0., 0.));// , "D:/learn/graphics/ppm/kamen.bmp");
+	 
 }

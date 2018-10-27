@@ -50,20 +50,16 @@ public:
 
 class HashList {
 public:
-	std::vector<HPoint*> hList;
-	AABB hpBox;
+	std::vector<HPoint*> hList;//所有的HitPoint
+	AABB hpBox;//包围盒
 	double hash_s;
-	int num_hash;
-	std::vector<HPoint*>* hashGrid;
-	void clear();
-	HashList(){}
-	
-	/*
-	void addNode(HPoint* hp){
-	}*/
-	void addNode(HPoint* hp){ hList.push_back(hp); }
-	void build_hash_grid(int w, int h);
-	int hash(const int ix, const int iy, const int iz){
+	int num_hash;//Hash表的大小
+	std::vector<HPoint*>* hashGrid;//每个网格中对应的HitPoint链表
+	void clear();//清空
+	HashList() { hashGrid = 0; }
+	void addNode(HPoint* hp){ hList.push_back(hp); }//添加HitPoint
+	void build_hash_grid(int w, int h);//在找到所有的HitPoint后建立Hash网格
+	int hash(const int ix, const int iy, const int iz){//Hash值
 		return (unsigned int)((ix*73856093)^(iy*19349663)^(iz*83492791)) % num_hash;
 	}
 };
